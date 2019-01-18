@@ -4,7 +4,7 @@ const port = 3000
 const shortid = require('shortid')
 
 const mongoose = require('mongoose')
-mongoose.connect('mongodb://localhost:27017/test', {useNewUrlParser: true});
+mongoose.connect('mongodb://localhost:27017/test', { useNewUrlParser: true });
 const dbConnection = mongoose.connection
 dbConnection.on('open', () => {
     console.log('Connected to DB!')
@@ -13,7 +13,8 @@ dbConnection.on('open', () => {
 const URL = mongoose.model("url", {
     hash: String,
     url: String,
-    hits: { type: Number, default: 0 }
+    hits: { type: Number, default: 0 },
+    maxHits: { type: Number, default:5}
 });
 
 const loggerMiddleware = (req, res, next) => {
@@ -31,40 +32,44 @@ app.use(express.json())
 
 app.post('/shorten', (req, res) => {
     const hash = shortid.generate();
-    URL.findOne({url: req.body.url}).exec()
-    .then(existingUrl => {
-        if (existingUrl) {
+    URL.findOne({ url: req.body.url }).exec()
+        .then(existingUrl => {
+            if (existingUrl) {
                 return existingUrl;
-        } else {
+            } else {
                 const hash = shortid.generate();
-                return URL.create({ hash: hash, url: req.body.url });
-        }
-    })
-    .then(doc => {
-        return res.status(201).send(doc)
-    })
+                return URL.create({ hash: hash, url: req.body.url, maxHits: req.body.maxHits });
+            }
+        })
+        .then(doc => {
+            return res.status(201).send(doc)
+        })
 })
-app.get('/hits',(req,res)=>{
+app.get('/hits', (req, res) => {
     console.log(req.query)
-    URL.findOne({hash:req.query.hash}).exec()
-        .then(existingUrl=>{
-            if(existingUrl){
-                return res.status(200).send({hits:existingUrl.hits})
-            }else{
+    URL.findOne({ hash: req.query.hash }).exec()
+        .then(existingUrl => {
+            if (existingUrl) {
+                return res.status(200).send({ hits: existingUrl.hits })
+            } else {
                 return res.send(404)
             }
         })
 })
 app.get('/:hash', (req, res) => {
-    URL.findOne({hash: req.params.hash}).exec()
+    URL.findOne({ hash: req.params.hash }).exec()
         .then(existingUrl => {
             if (existingUrl) {
                 console.log("Redirecting...")
-                return URL.update({hash: req.params.hash},{$set:{hits: existingUrl.hits+1}}).exec()
-                            .then(() => {
-                                console.log(existingUrl)
-                                return res.redirect(existingUrl.url);
-                            })
+                return URL.update({ hash: req.params.hash }, { $set: { hits: existingUrl.hits + 1 } }).exec()
+                    .then(() => {
+                        console.log(existingUrl)
+                        if (existingUrl.hits<=existingUrl.maxHits){
+                            return res.redirect(existingUrl.url);
+                        }else{
+                            return res.status(404).send("Not Found");
+                        }
+                    })
             } else {
                 return res.send(404)
             }

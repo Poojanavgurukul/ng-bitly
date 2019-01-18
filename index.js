@@ -14,7 +14,7 @@ const URL = mongoose.model("url", {
     hash: String,
     url: String,
     hits: { type: Number, default: 0 },
-    maxHits: { type: Number, default:5}
+    maxHits: { type: Number}
 });
 
 const loggerMiddleware = (req, res, next) => {

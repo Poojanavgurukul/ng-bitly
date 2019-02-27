@@ -38,6 +38,15 @@ app.post('/shorten', (req, res) => {
                 return existingUrl;
             } else {
                 const hash = shortid.generate();
+                return URL.create({ hash: hash, url: req.body.url });
+            }
+        })
+        URL.findOne({ url: req.body.url,maxHits:req.body.maxHits }).exec()
+        .then(existingUrl => {
+            if (existingUrl) {
+                return existingUrl;
+            } else {
+                const hash = shortid.generate();
                 return URL.create({ hash: hash, url: req.body.url, maxHits: req.body.maxHits });
             }
         })
